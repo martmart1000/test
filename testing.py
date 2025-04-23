@@ -85,7 +85,6 @@ def fetch_supplier_news(supplier):
         }
     ]
     return news_articles
-        return [{"title": f"Error fetching news: {e}", "url": "#", "flag": "Error"}]
 
 st.title("📊 Supplier Spend Dashboard")
 
