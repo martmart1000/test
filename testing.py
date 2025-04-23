@@ -102,10 +102,20 @@ if menu == "Data Entry":
 
     st.markdown("---")
     st.subheader("📤 Or Upload CSV")
-    csv = st.file_uploader("Upload CSV", type="csv")
+    st.markdown("Download a [CSV template](https://raw.githubusercontent.com/yourusername/yourrepo/main/sample_supplier_spend.csv) for upload format.")
     if csv:
         df = pd.read_csv(csv)
-        df.to_sql("spend", conn, if_exists="append", index=False)
+        required_cols = ["supplier", "date", "amount"]
+        if all(col in df.columns for col in required_cols):
+            df = df.rename(columns={"amount": "amount", "supplier": "supplier", "date": "date"})
+            df["category"] = df.get("category", "")
+            df["region"] = df.get("region", "")
+            df["contact"] = df.get("contact", "")
+            df = df[["supplier", "category", "amount", "date", "region", "contact"]]
+            df.to_sql("spend", conn, if_exists="append", index=False)
+            st.success("CSV uploaded and saved to database!")
+        else:
+            st.error("CSV must contain 'supplier', 'date', and 'amount' columns.")
         st.success("CSV uploaded and saved to database!")
 
 elif menu == "Dashboard":
