@@ -53,13 +53,24 @@ def ai_tag_insight(description):
 
     return risk_level, opportunity
 
-# Function to fetch news from the web (mocked)
+# Simulated news fetch with flags and links
 def fetch_supplier_news(supplier):
-    # Placeholder API or simulated data
     return [
-        f"{supplier} launches new sustainable initiative",
-        f"{supplier} reports strong Q1 earnings",
-        f"Potential disruptions in {supplier}'s supply chain"
+        {
+            "title": f"{supplier} launches new sustainable initiative",
+            "url": "https://example.com/news1",
+            "flag": "Opportunity"
+        },
+        {
+            "title": f"{supplier} reports strong Q1 earnings",
+            "url": "https://example.com/news2",
+            "flag": "Opportunity"
+        },
+        {
+            "title": f"Potential disruptions in {supplier}'s supply chain",
+            "url": "https://example.com/news3",
+            "flag": "Risk"
+        }
     ]
 
 st.title("📊 Supplier Spend Dashboard")
@@ -98,7 +109,7 @@ elif menu == "Dashboard":
         st.info("No data available.")
     else:
         df["date"] = pd.to_datetime(df["date"])
-        spend_by_category = df.groupby("category")[["amount"]].sum().reset_index()
+        spend_by_category = df.groupby("category")["amount"].sum().reset_index()
         chart = alt.Chart(spend_by_category).mark_bar().encode(
             x="category",
             y="amount",
@@ -107,7 +118,7 @@ elif menu == "Dashboard":
         st.altair_chart(chart, use_container_width=True)
 
         st.markdown("---")
-        spend_by_supplier = df.groupby("supplier")[["amount"]].sum().reset_index()
+        spend_by_supplier = df.groupby("supplier")["amount"].sum().reset_index()
         chart2 = alt.Chart(spend_by_supplier).mark_bar().encode(
             x="supplier",
             y="amount",
@@ -116,33 +127,4 @@ elif menu == "Dashboard":
         st.altair_chart(chart2, use_container_width=True)
 
         st.markdown("---")
-        st.subheader("📰 Latest Supplier News")
-        unique_suppliers = df["supplier"].unique()
-        for supplier in unique_suppliers:
-            st.markdown(f"**{supplier}**")
-            news_items = fetch_supplier_news(supplier)
-            for item in news_items:
-                st.markdown(f"- {item}")
-
-elif menu == "Insights":
-    st.subheader("🧠 Supplier News & Risks")
-    with st.form("insight_form"):
-        supplier = st.text_input("Linked Supplier (or 'All')")
-        category = st.text_input("Linked Category (optional)")
-        insight_type = st.selectbox("Type", ["News", "Risk"])
-        description = st.text_area("Description")
-        date_added = datetime.date.today()
-        submit_insight = st.form_submit_button("Add Insight")
-
-        if submit_insight:
-            risk_level, opportunity = ai_tag_insight(description)
-            cursor.execute('''
-                INSERT INTO insights (supplier, category, type, description, risk_level, opportunity, date_added)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (supplier, category, insight_type, description, risk_level, opportunity, date_added.isoformat()))
-            conn.commit()
-            st.success(f"Insight added with Risk: {risk_level}, Opportunity: {opportunity}")
-
-    st.markdown("---")
-    insights_df = pd.read_sql_query("SELECT * FROM insights", conn)
-    st.dataframe(insights_df)
+        st.subheader
