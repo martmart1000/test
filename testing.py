@@ -219,11 +219,9 @@ elif menu == "Dashboard":
                     st.markdown(f"<div style='display:flex;align-items:center;'>"
                                 f"<img src='{logo_url}' width='24' style='margin-right:10px;'>"
                                 f"{color} <strong>{item['flag']}</strong> — <a href='{item['url']}' target='_blank'>{item['title']}</a> <em>(Published: {item['date']})</em>"
+                                f"</div>", unsafe_allow_html=True)</em>"
                                 f"</div>", unsafe_allow_html=True)
-                        if news_filter != "All":
-                news_items = [item for item in news_items if item['flag'] == news_filter]
-                color = "🟢" if item["flag"] == "Opportunity" else ("🔴" if item["flag"] == "Risk" else "⚪")
-                st.markdown(f"- {color} [{item['title']}]({item['url']})")
+                        
 
 elif menu == "Insights":
     st.subheader("🧠 Supplier News & Risks")
