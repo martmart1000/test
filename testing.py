@@ -127,6 +127,7 @@ if menu == "Data Entry":
 
 elif menu == "Dashboard":
     st.subheader("📈 Spend Visualization")
+    df = pd.read_sql_query("SELECT * FROM spend", conn)
     export_btn = st.button("📥 Export Filtered Results as CSV")
     # Filters
     with st.expander("🔍 Filter Options"):
@@ -161,7 +162,6 @@ elif menu == "Dashboard":
             pdf.output(pdf_output_path)
             with open(pdf_output_path, "rb") as f:
                 st.download_button("Download PDF", f, file_name="filtered_supplier_spend.pdf", mime="application/pdf")
-    df = pd.read_sql_query("SELECT * FROM spend", conn)
     if df.empty:
         st.info("No data available.")
     else:
