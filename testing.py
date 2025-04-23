@@ -61,28 +61,30 @@ def ai_tag_insight(description):
 
 # Function to fetch real-time news using GNews API (requires API key)
 def fetch_supplier_news(supplier):
-    api_key = "YOUR_GNEWS_API_KEY"  # Replace with your actual API key
-    url = f"https://gnews.io/api/v4/search?q={supplier}&lang=en&token={api_key}"
-    try:
-        response = requests.get(url)
-        data = response.json()
-        articles = data.get("articles", [])
-        news_items = []
-        for article in sorted(
-            [a for a in articles if pd.to_datetime(a.get('publishedAt', ''), errors='coerce') >= (datetime.datetime.now() - datetime.timedelta(days=30))],
-            key=lambda x: x.get('publishedAt', ''),
-            reverse=True
-        )[:3]:  # Limit to top 3 articles
-            title = article.get("title", "")
-            link = article.get("url", "")
-            desc = article.get("description", "")
-            risk_level, opportunity = ai_tag_insight(desc)
-            flag = "Opportunity" if opportunity != "None" else ("Risk" if risk_level in ["High", "Medium"] else "Neutral")
-            published = article.get("publishedAt", "")
-            published_date = pd.to_datetime(published, errors='coerce')
-            published_str = published_date.strftime('%Y-%m-%d') if not pd.isnull(published_date) else ""
-            news_items.append({"title": title, "url": link, "flag": flag, "date": published_str})
-        return news_items
+    news_articles = [
+        {
+            "title": "UK Bans Solar Panels Linked to Forced Labor",
+            "url": "https://www.theguardian.com/politics/2025/apr/23/great-british-energy-will-not-use-solar-panels-linked-to-chinese-slave-labour",
+            "description": "The UK has banned solar panel projects tied to Chinese forced labor.",
+            "flag": "Risk",
+            "date": "2025-04-23"
+        },
+        {
+            "title": "Companies Face Rising Costs Due to Tariffs",
+            "url": "https://apnews.com/article/bc61998c7f6b8621d57a886cb7c8223c",
+            "description": "Tariffs on imports are forcing companies to restructure supply chains.",
+            "flag": "Risk",
+            "date": "2025-04-22"
+        },
+        {
+            "title": "GE Aerospace Advocates for Tariff-Free Aviation Industry",
+            "url": "https://www.reuters.com/business/autos-transportation/ge-aerospace-ceo-culp-advocates-tariff-free-regime-aviation-industry-2025-04-22/",
+            "description": "GE urges a tariff-free aviation industry to avoid disruptions.",
+            "flag": "Opportunity",
+            "date": "2025-04-22"
+        }
+    ]
+    return news_articles
     except Exception as e:
         return [{"title": f"Error fetching news: {e}", "url": "#", "flag": "Error"}]
 
@@ -176,7 +178,17 @@ elif menu == "Dashboard":
         ).properties(title="Spend by Supplier")
         st.altair_chart(chart2, use_container_width=True)
 
-        # Spend by Week
+        # Spend in Last 30 Days
+        st.markdown("---")
+        recent_df = df[df["date"] >= datetime.datetime.now() - datetime.timedelta(days=30)]
+        recent_spend_by_supplier = recent_df.groupby("supplier")["amount"].sum().div(1000).round(1).reset_index()
+        if not recent_spend_by_supplier.empty:
+            chart_recent = alt.Chart(recent_spend_by_supplier).mark_bar(size=30, color='teal').encode(
+                x=alt.X("supplier", sort="-y", title="Supplier"),
+                y=alt.Y("amount", title="Spend (£1000s)"),
+                tooltip=["supplier", "amount"]
+            ).properties(title="Spend in Last 30 Days by Supplier")
+            st.altair_chart(chart_recent, use_container_width=True)
         st.markdown("---")
         df["week"] = df["date"].dt.to_period("W").astype(str)
         spend_by_week = df.groupby("week")["amount"].sum().div(1000).round(1).reset_index()
