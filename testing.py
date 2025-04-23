@@ -68,13 +68,20 @@ def fetch_supplier_news(supplier):
         data = response.json()
         articles = data.get("articles", [])
         news_items = []
-        for article in articles[:3]:  # Limit to top 3 articles
+        for article in sorted(
+            [a for a in articles if pd.to_datetime(a.get('publishedAt', ''), errors='coerce') >= (datetime.datetime.now() - datetime.timedelta(days=30))],
+            key=lambda x: x.get('publishedAt', ''),
+            reverse=True
+        )[:3]:  # Limit to top 3 articles
             title = article.get("title", "")
             link = article.get("url", "")
             desc = article.get("description", "")
             risk_level, opportunity = ai_tag_insight(desc)
             flag = "Opportunity" if opportunity != "None" else ("Risk" if risk_level in ["High", "Medium"] else "Neutral")
-            news_items.append({"title": title, "url": link, "flag": flag})
+            published = article.get("publishedAt", "")
+            published_date = pd.to_datetime(published, errors='coerce')
+            published_str = published_date.strftime('%Y-%m-%d') if not pd.isnull(published_date) else ""
+            news_items.append({"title": title, "url": link, "flag": flag, "date": published_str})
         return news_items
     except Exception as e:
         return [{"title": f"Error fetching news: {e}", "url": "#", "flag": "Error"}]
@@ -120,6 +127,40 @@ if menu == "Data Entry":
 
 elif menu == "Dashboard":
     st.subheader("📈 Spend Visualization")
+    export_btn = st.button("📥 Export Filtered Results as CSV")
+    # Filters
+    with st.expander("🔍 Filter Options"):
+        filter_supplier = st.multiselect("Select Suppliers", options=df["supplier"].dropna().unique())
+        filter_category = st.multiselect("Select Categories", options=df["category"].dropna().unique())
+        filter_start_date = st.date_input("Start Date", value=df["date"].min().date())
+        filter_end_date = st.date_input("End Date", value=df["date"].max().date())
+
+        # Apply filters
+        if filter_supplier:
+            df = df[df["supplier"].isin(filter_supplier)]
+        if filter_category:
+            df = df[df["category"].isin(filter_category)]
+        df = df[(df["date"] >= pd.to_datetime(filter_start_date)) & (df["date"] <= pd.to_datetime(filter_end_date))]
+    if export_btn:
+        df_export = df.copy()
+        df_export.to_csv("filtered_supplier_spend.csv", index=False)
+        st.success("Filtered data exported successfully.")
+        with open("filtered_supplier_spend.csv", "rb") as file:
+            st.download_button("Download CSV", file, file_name="filtered_supplier_spend.csv", mime="text/csv")
+
+        from fpdf import FPDF
+        if not df_export.empty:
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", size=12)
+            pdf.cell(200, 10, txt="Filtered Supplier Spend Report", ln=True, align='C')
+            for index, row in df_export.iterrows():
+                line = f"Supplier: {row['supplier']}, Category: {row['category']}, Amount: {row['amount']}, Date: {row['date']}"
+                pdf.multi_cell(0, 10, txt=line)
+            pdf_output_path = "filtered_supplier_spend.pdf"
+            pdf.output(pdf_output_path)
+            with open(pdf_output_path, "rb") as f:
+                st.download_button("Download PDF", f, file_name="filtered_supplier_spend.pdf", mime="application/pdf")
     df = pd.read_sql_query("SELECT * FROM spend", conn)
     if df.empty:
         st.info("No data available.")
@@ -128,19 +169,19 @@ elif menu == "Dashboard":
         df = df.dropna(subset=["date"])  # drop rows with invalid dates
 
         # Spend by Category
-        spend_by_category = df.groupby("category")["amount"].sum().reset_index()
-        chart = alt.Chart(spend_by_category).mark_bar().encode(
-            x="category",
-            y="amount",
+        spend_by_category = df.groupby("category")["amount"].sum().div(1000).round(1).reset_index()
+        chart = alt.Chart(spend_by_category).mark_bar(color='steelblue', size=30).encode(
+            x=alt.X("category", sort="-y", title="Category"),
+            y=alt.Y("amount", title="Spend (£1000s)"),
             tooltip=["category", "amount"]
         ).properties(title="Spend by Category")
         st.altair_chart(chart, use_container_width=True)
 
         # Spend by Supplier
         st.markdown("---")
-        spend_by_supplier = df.groupby("supplier")["amount"].sum().reset_index()
-        chart2 = alt.Chart(spend_by_supplier).mark_bar().encode(
-            x="supplier",
+        spend_by_supplier = df.groupby("supplier")["amount"].sum().div(1000).round(1).reset_index()
+        chart2 = alt.Chart(spend_by_supplier).mark_bar(size=30, color='orange').encode(
+            x=alt.X("supplier", sort="-y", title="Supplier"),
             y="amount",
             tooltip=["supplier", "amount"]
         ).properties(title="Spend by Supplier")
@@ -149,8 +190,8 @@ elif menu == "Dashboard":
         # Spend by Week
         st.markdown("---")
         df["week"] = df["date"].dt.to_period("W").astype(str)
-        spend_by_week = df.groupby("week")["amount"].sum().reset_index()
-        chart3 = alt.Chart(spend_by_week).mark_line(point=True).encode(
+        spend_by_week = df.groupby("week")["amount"].sum().div(1000).round(1).reset_index()
+        chart3 = alt.Chart(spend_by_week).mark_line(point=alt.OverlayMarkDef(color='blue', size=70), color='green').encode(
             x="week",
             y="amount",
             tooltip=["week", "amount"]
@@ -160,13 +201,27 @@ elif menu == "Dashboard":
         # Supplier News
         st.markdown("---")
         st.subheader("📰 Latest Supplier News")
+        news_filter = st.radio("Show only news flagged as:", ["All", "Risk", "Opportunity", "Neutral"], horizontal=True)
         unique_suppliers = df["supplier"].dropna().unique()
         for supplier in unique_suppliers:
             st.markdown(f"### 🏢 {supplier}")
             news_items = fetch_supplier_news(supplier)
+            priority_order = {"Risk": 1, "Opportunity": 2, "Neutral": 3, "Error": 4}
+            news_items = sorted(news_items, key=lambda x: priority_order.get(x.get('flag', 'Neutral'), 99))
+            if news_filter != "All":
+                news_items = [item for item in news_items if item['flag'] == news_filter]
             if not news_items:
                 st.markdown("_No news found._")
-            for item in news_items:
+            else:
+                for item in news_items:
+                    color = "🟢" if item["flag"] == "Opportunity" else ("🔴" if item["flag"] == "Risk" else "⚪")
+                    logo_url = f"https://logo.clearbit.com/{supplier.lower().replace(' ', '')}.com"
+                    st.markdown(f"<div style='display:flex;align-items:center;'>"
+                                f"<img src='{logo_url}' width='24' style='margin-right:10px;'>"
+                                f"{color} <strong>{item['flag']}</strong> — <a href='{item['url']}' target='_blank'>{item['title']}</a> <em>(Published: {item['date']})</em>"
+                                f"</div>", unsafe_allow_html=True)
+                        if news_filter != "All":
+                news_items = [item for item in news_items if item['flag'] == news_filter]
                 color = "🟢" if item["flag"] == "Opportunity" else ("🔴" if item["flag"] == "Risk" else "⚪")
                 st.markdown(f"- {color} [{item['title']}]({item['url']})")
 
