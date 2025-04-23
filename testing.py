@@ -61,30 +61,33 @@ def ai_tag_insight(description):
 
 # Function to fetch real-time news using GNews API (requires API key)
 def fetch_supplier_news(supplier):
-    news_articles = [
+    all_news = [
         {
             "title": "UK Bans Solar Panels Linked to Forced Labor",
             "url": "https://www.theguardian.com/politics/2025/apr/23/great-british-energy-will-not-use-solar-panels-linked-to-chinese-slave-labour",
             "description": "The UK has banned solar panel projects tied to Chinese forced labor.",
             "flag": "Risk",
-            "date": "2025-04-23"
+            "date": "2025-04-23",
+            "supplier": "SolarCo"
         },
         {
             "title": "Companies Face Rising Costs Due to Tariffs",
             "url": "https://apnews.com/article/bc61998c7f6b8621d57a886cb7c8223c",
             "description": "Tariffs on imports are forcing companies to restructure supply chains.",
             "flag": "Risk",
-            "date": "2025-04-22"
+            "date": "2025-04-22",
+            "supplier": "TradeImports Inc"
         },
         {
             "title": "GE Aerospace Advocates for Tariff-Free Aviation Industry",
             "url": "https://www.reuters.com/business/autos-transportation/ge-aerospace-ceo-culp-advocates-tariff-free-regime-aviation-industry-2025-04-22/",
             "description": "GE urges a tariff-free aviation industry to avoid disruptions.",
             "flag": "Opportunity",
-            "date": "2025-04-22"
+            "date": "2025-04-22",
+            "supplier": "GE Aerospace"
         }
     ]
-    return news_articles
+    return [item for item in all_news if supplier.lower() in item['supplier'].lower()]
 
 st.title("📊 Supplier Spend Dashboard")
 
