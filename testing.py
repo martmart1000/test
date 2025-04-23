@@ -216,11 +216,13 @@ elif menu == "Dashboard":
                 for item in news_items:
                     color = "🟢" if item["flag"] == "Opportunity" else ("🔴" if item["flag"] == "Risk" else "⚪")
                     logo_url = f"https://logo.clearbit.com/{supplier.lower().replace(' ', '')}.com"
-                    st.markdown(f"<div style='display:flex;align-items:center;'>"
-                                f"<img src='{logo_url}' width='24' style='margin-right:10px;'>"
-                                f"{color} <strong>{item['flag']}</strong> — <a href='{item['url']}' target='_blank'>{item['title']}</a> <em>(Published: {item['date']})</em>"
-                                f"</div>", unsafe_allow_html=True)</em>"
-                                f"</div>", unsafe_allow_html=True)
+                    st.markdown(f"""
+                        <div style='display:flex;align-items:center;'>
+                            <img src='{logo_url}' width='24' style='margin-right:10px;'>
+                            {color} <strong>{item['flag']}</strong> — <a href='{item['url']}' target='_blank'>{item['title']}</a> <em>(Published: {item['date']})</em>
+                        </div>
+                        """, unsafe_allow_html=True)
+                                
                         
 
 elif menu == "Insights":
