@@ -87,7 +87,14 @@ def fetch_supplier_news(supplier):
             "supplier": "GE Aerospace"
         }
     ]
-    return [item for item in all_news if supplier.lower() in item['supplier'].lower()]
+    matched_news = [item for item in all_news if supplier.lower() in item['supplier'].lower() or item['supplier'].lower() in supplier.lower()]
+    if matched_news:
+        return matched_news
+    fallback_news = [item.copy() for item in all_news if item['flag'] == 'Risk'][:1]
+    for item in fallback_news:
+        item['supplier'] = supplier
+        item['flag'] = 'General Risk'
+    return fallback_news
 
 st.title("📊 Supplier Spend Dashboard")
 
@@ -111,6 +118,13 @@ if menu == "Data Entry":
             st.success("Spend entry added successfully!")
 
     st.markdown("---")
+    st.subheader("📥 Download All Data")
+    if st.button("Download Current Spend Data as CSV"):
+        export_df = pd.read_sql_query("SELECT * FROM spend", conn)
+        export_df.to_csv("all_spend_data.csv", index=False)
+        with open("all_spend_data.csv", "rb") as file:
+            st.download_button("Download CSV", file, file_name="all_spend_data.csv", mime="text/csv")
+
     st.subheader("📤 Or Upload CSV")
     st.markdown("Download a [CSV template](https://raw.githubusercontent.com/yourusername/yourrepo/main/sample_supplier_spend.csv) for upload format.")
     csv = st.file_uploader("Upload CSV", type="csv")
