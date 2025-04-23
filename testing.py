@@ -3,6 +3,7 @@ import pandas as pd
 import sqlite3
 import datetime
 import altair as alt
+import requests
 
 # Connect to SQLite DB
 conn = sqlite3.connect("supplier_spend.db")
@@ -52,6 +53,15 @@ def ai_tag_insight(description):
 
     return risk_level, opportunity
 
+# Function to fetch news from the web (mocked)
+def fetch_supplier_news(supplier):
+    # Placeholder API or simulated data
+    return [
+        f"{supplier} launches new sustainable initiative",
+        f"{supplier} reports strong Q1 earnings",
+        f"Potential disruptions in {supplier}'s supply chain"
+    ]
+
 st.title("📊 Supplier Spend Dashboard")
 
 # Sidebar options
@@ -88,7 +98,7 @@ elif menu == "Dashboard":
         st.info("No data available.")
     else:
         df["date"] = pd.to_datetime(df["date"])
-        spend_by_category = df.groupby("category")["amount"].sum().reset_index()
+        spend_by_category = df.groupby("category")[["amount"]].sum().reset_index()
         chart = alt.Chart(spend_by_category).mark_bar().encode(
             x="category",
             y="amount",
@@ -97,13 +107,22 @@ elif menu == "Dashboard":
         st.altair_chart(chart, use_container_width=True)
 
         st.markdown("---")
-        spend_by_supplier = df.groupby("supplier")["amount"].sum().reset_index()
+        spend_by_supplier = df.groupby("supplier")[["amount"]].sum().reset_index()
         chart2 = alt.Chart(spend_by_supplier).mark_bar().encode(
             x="supplier",
             y="amount",
             tooltip=["supplier", "amount"]
         ).properties(title="Spend by Supplier")
         st.altair_chart(chart2, use_container_width=True)
+
+        st.markdown("---")
+        st.subheader("📰 Latest Supplier News")
+        unique_suppliers = df["supplier"].unique()
+        for supplier in unique_suppliers:
+            st.markdown(f"**{supplier}**")
+            news_items = fetch_supplier_news(supplier)
+            for item in news_items:
+                st.markdown(f"- {item}")
 
 elif menu == "Insights":
     st.subheader("🧠 Supplier News & Risks")
