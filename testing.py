@@ -117,9 +117,6 @@ if menu == "Data Entry":
             st.success("CSV uploaded and saved to database!")
         else:
             st.error("CSV must contain 'supplier', 'date', and 'amount' columns.")
-        else:
-            st.error("CSV must contain 'supplier', 'date', and 'amount' columns.")
-        st.success("CSV uploaded and saved to database!")
 
 elif menu == "Dashboard":
     st.subheader("📈 Spend Visualization")
