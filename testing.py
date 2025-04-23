@@ -129,21 +129,7 @@ elif menu == "Dashboard":
     st.subheader("📈 Spend Visualization")
     df = pd.read_sql_query("SELECT * FROM spend", conn)
     export_btn = st.button("📥 Export Filtered Results as CSV")
-    # Filters
-    with st.expander("🔍 Filter Options"):
-        filter_supplier = st.multiselect("Select Suppliers", options=df["supplier"].dropna().unique())
-        filter_category = st.multiselect("Select Categories", options=df["category"].dropna().unique())
-        default_start_date = pd.to_datetime(df["date"], errors='coerce').min()
-        filter_start_date = st.date_input("Start Date", value=default_start_date.date() if not pd.isnull(default_start_date) else datetime.date.today())
-        default_end_date = pd.to_datetime(df["date"], errors='coerce').max()
-        filter_end_date = st.date_input("End Date", value=default_end_date.date() if not pd.isnull(default_end_date) else datetime.date.today())
 
-        # Apply filters
-        if filter_supplier:
-            df = df[df["supplier"].isin(filter_supplier)]
-        if filter_category:
-            df = df[df["category"].isin(filter_category)]
-        df = df[(df["date"] >= pd.to_datetime(filter_start_date)) & (df["date"] <= pd.to_datetime(filter_end_date))]
     if export_btn:
         df_export = df.copy()
         df_export.to_csv("filtered_supplier_spend.csv", index=False)
