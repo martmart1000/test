@@ -133,8 +133,10 @@ elif menu == "Dashboard":
     with st.expander("🔍 Filter Options"):
         filter_supplier = st.multiselect("Select Suppliers", options=df["supplier"].dropna().unique())
         filter_category = st.multiselect("Select Categories", options=df["category"].dropna().unique())
-        filter_start_date = st.date_input("Start Date", value=df["date"].min().date())
-        filter_end_date = st.date_input("End Date", value=df["date"].max().date())
+        default_start_date = pd.to_datetime(df["date"], errors='coerce').min()
+        filter_start_date = st.date_input("Start Date", value=default_start_date.date() if not pd.isnull(default_start_date) else datetime.date.today())
+        default_end_date = pd.to_datetime(df["date"], errors='coerce').max()
+        filter_end_date = st.date_input("End Date", value=default_end_date.date() if not pd.isnull(default_end_date) else datetime.date.today())
 
         # Apply filters
         if filter_supplier:
