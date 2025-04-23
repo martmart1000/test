@@ -36,19 +36,25 @@ CREATE TABLE IF NOT EXISTS insights (
 ''')
 conn.commit()
 
-# Simulated AI tagging function
+# GPT-enhanced AI tagging function
 def ai_tag_insight(description):
     desc = description.lower()
     risk_level = "Low"
     opportunity = "None"
-    if any(word in desc for word in ["delay", "shortage", "lawsuit"]):
+
+    high_risk_keywords = ["delay", "shortage", "lawsuit", "bankruptcy", "strike"]
+    med_risk_keywords = ["restructure", "uncertainty", "layoff"]
+    opportunity_keywords = ["expansion", "innovation", "growth", "partnership", "investment"]
+    esg_keywords = ["sustainability", "esg", "green", "carbon"]
+
+    if any(word in desc for word in high_risk_keywords):
         risk_level = "High"
-    elif any(word in desc for word in ["restructure", "uncertainty"]):
+    elif any(word in desc for word in med_risk_keywords):
         risk_level = "Medium"
 
-    if any(word in desc for word in ["expansion", "innovation", "growth"]):
+    if any(word in desc for word in opportunity_keywords):
         opportunity = "Growth"
-    elif "sustainability" in desc:
+    elif any(word in desc for word in esg_keywords):
         opportunity = "ESG Benefit"
 
     return risk_level, opportunity
@@ -66,13 +72,9 @@ def fetch_supplier_news(supplier):
             title = article["title"]
             link = article["url"]
             desc = article.get("description", "")
-            # Tag with flags
-            if any(word in desc.lower() for word in ["growth", "partnership", "launch"]):
-                flag = "Opportunity"
-            elif any(word in desc.lower() for word in ["disruption", "layoff", "risk"]):
-                flag = "Risk"
-            else:
-                flag = "Neutral"
+            # Tag with flags using enhanced tagging
+            risk_level, opportunity = ai_tag_insight(desc)
+            flag = "Opportunity" if opportunity != "None" else ("Risk" if risk_level in ["High", "Medium"] else "Neutral")
             news_items.append({"title": title, "url": link, "flag": flag})
         return news_items
     except:
@@ -101,3 +103,67 @@ if menu == "Data Entry":
 
     st.markdown("---")
     st.subheader("📤 Or Upload CSV")
+    csv = st.file_uploader("Upload CSV", type="csv")
+    if csv:
+        df = pd.read_csv(csv)
+        df.to_sql("spend", conn, if_exists="append", index=False)
+        st.success("CSV uploaded and saved to database!")
+
+elif menu == "Dashboard":
+    st.subheader("📈 Spend Visualization")
+    df = pd.read_sql_query("SELECT * FROM spend", conn)
+    if df.empty:
+        st.info("No data available.")
+    else:
+        df["date"] = pd.to_datetime(df["date"])
+        spend_by_category = df.groupby("category")["amount"].sum().reset_index()
+        chart = alt.Chart(spend_by_category).mark_bar().encode(
+            x="category",
+            y="amount",
+            tooltip=["category", "amount"]
+        ).properties(title="Spend by Category")
+        st.altair_chart(chart, use_container_width=True)
+
+        st.markdown("---")
+        spend_by_supplier = df.groupby("supplier")["amount"].sum().reset_index()
+        chart2 = alt.Chart(spend_by_supplier).mark_bar().encode(
+            x="supplier",
+            y="amount",
+            tooltip=["supplier", "amount"]
+        ).properties(title="Spend by Supplier")
+        st.altair_chart(chart2, use_container_width=True)
+
+        st.markdown("---")
+        st.subheader("📰 Latest Supplier News")
+        unique_suppliers = df["supplier"].unique()
+        for supplier in unique_suppliers:
+            st.markdown(f"### 🏢 {supplier}")
+            news_items = fetch_supplier_news(supplier)
+            if not news_items:
+                st.markdown("_No news found._")
+            for item in news_items:
+                color = "🟢" if item["flag"] == "Opportunity" else ("🔴" if item["flag"] == "Risk" else "⚪")
+                st.markdown(f"- {color} [{item['title']}]({item['url']})")
+
+elif menu == "Insights":
+    st.subheader("🧠 Supplier News & Risks")
+    with st.form("insight_form"):
+        supplier = st.text_input("Linked Supplier (or 'All')")
+        category = st.text_input("Linked Category (optional)")
+        insight_type = st.selectbox("Type", ["News", "Risk"])
+        description = st.text_area("Description")
+        date_added = datetime.date.today()
+        submit_insight = st.form_submit_button("Add Insight")
+
+        if submit_insight:
+            risk_level, opportunity = ai_tag_insight(description)
+            cursor.execute('''
+                INSERT INTO insights (supplier, category, type, description, risk_level, opportunity, date_added)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (supplier, category, insight_type, description, risk_level, opportunity, date_added.isoformat()))
+            conn.commit()
+            st.success(f"Insight added with Risk: {risk_level}, Opportunity: {opportunity}")
+
+    st.markdown("---")
+    insights_df = pd.read_sql_query("SELECT * FROM insights", conn)
+    st.dataframe(insights_df)
