@@ -53,25 +53,30 @@ def ai_tag_insight(description):
 
     return risk_level, opportunity
 
-# Simulated news fetch with flags and links
+# Function to fetch real-time news using GNews API (requires API key)
 def fetch_supplier_news(supplier):
-    return [
-        {
-            "title": f"{supplier} launches new sustainable initiative",
-            "url": "https://example.com/news1",
-            "flag": "Opportunity"
-        },
-        {
-            "title": f"{supplier} reports strong Q1 earnings",
-            "url": "https://example.com/news2",
-            "flag": "Opportunity"
-        },
-        {
-            "title": f"Potential disruptions in {supplier}'s supply chain",
-            "url": "https://example.com/news3",
-            "flag": "Risk"
-        }
-    ]
+    api_key = "YOUR_GNEWS_API_KEY"  # Replace with your actual API key
+    url = f"https://gnews.io/api/v4/search?q={supplier}&lang=en&token={api_key}"
+    try:
+        response = requests.get(url)
+        data = response.json()
+        articles = data.get("articles", [])
+        news_items = []
+        for article in articles[:3]:  # Limit to top 3 articles
+            title = article["title"]
+            link = article["url"]
+            desc = article.get("description", "")
+            # Tag with flags
+            if any(word in desc.lower() for word in ["growth", "partnership", "launch"]):
+                flag = "Opportunity"
+            elif any(word in desc.lower() for word in ["disruption", "layoff", "risk"]):
+                flag = "Risk"
+            else:
+                flag = "Neutral"
+            news_items.append({"title": title, "url": link, "flag": flag})
+        return news_items
+    except:
+        return []
 
 st.title("📊 Supplier Spend Dashboard")
 
@@ -96,35 +101,3 @@ if menu == "Data Entry":
 
     st.markdown("---")
     st.subheader("📤 Or Upload CSV")
-    csv = st.file_uploader("Upload CSV", type="csv")
-    if csv:
-        df = pd.read_csv(csv)
-        df.to_sql("spend", conn, if_exists="append", index=False)
-        st.success("CSV uploaded and saved to database!")
-
-elif menu == "Dashboard":
-    st.subheader("📈 Spend Visualization")
-    df = pd.read_sql_query("SELECT * FROM spend", conn)
-    if df.empty:
-        st.info("No data available.")
-    else:
-        df["date"] = pd.to_datetime(df["date"])
-        spend_by_category = df.groupby("category")["amount"].sum().reset_index()
-        chart = alt.Chart(spend_by_category).mark_bar().encode(
-            x="category",
-            y="amount",
-            tooltip=["category", "amount"]
-        ).properties(title="Spend by Category")
-        st.altair_chart(chart, use_container_width=True)
-
-        st.markdown("---")
-        spend_by_supplier = df.groupby("supplier")["amount"].sum().reset_index()
-        chart2 = alt.Chart(spend_by_supplier).mark_bar().encode(
-            x="supplier",
-            y="amount",
-            tooltip=["supplier", "amount"]
-        ).properties(title="Spend by Supplier")
-        st.altair_chart(chart2, use_container_width=True)
-
-        st.markdown("---")
-        st.subheader
