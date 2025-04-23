@@ -154,7 +154,8 @@ elif menu == "Dashboard":
         st.info("No data available.")
     else:
         df["date"] = pd.to_datetime(df["date"], errors='coerce')
-        df = df.dropna(subset=["date"])  # drop rows with invalid dates
+        df = df.dropna(subset=["date"])
+        df["amount"] = pd.to_numeric(df["amount"], errors='coerce').fillna(0)  # drop rows with invalid dates
 
         # Spend by Category
         spend_by_category = df.groupby("category")["amount"].sum().div(1000).round(1).reset_index()
